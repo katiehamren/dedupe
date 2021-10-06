@@ -29,7 +29,7 @@ class Fingerprinter(object):
         self.index_fields: Dict[str,
                                 Dict[str,
                                      List[dedupe.predicates.IndexPredicate]]]
-        self.index_fields = defaultdict(index_list)
+        self.index_fields = defaultdict(index_list)  # {feature_name: {predicate type: function}}
         '''
         A dictionary of all the fingerprinter methods that use an
         index of data field values. The keys are the field names,
@@ -85,6 +85,9 @@ class Fingerprinter(object):
 
         '''
 
+        if isinstance(records, dict):
+            raise AttributeError("You passed a dict into the fingerprinter; expecting a list like dict.items()")
+
         start_time = time.perf_counter()
         predicates = [(':' + str(i), predicate)
                       for i, predicate
@@ -113,8 +116,8 @@ class Fingerprinter(object):
             predicate.reset()
 
     def index(self,
-              docs: Docs,
-              field: str) -> None:
+              docs: Docs,  # feature values
+              field: str) -> None:  # feature name
         '''
         Add docs to the indices used by fingerprinters.
 
@@ -180,8 +183,8 @@ class Fingerprinter(object):
                 predicate.bust_cache()
 
     def index_all(self, data: Data):
-        for field in self.index_fields:
-            unique_fields = {record[field]
+        for field in self.index_fields:  # Iterate through feature names
+            unique_fields = {record[field]  # Create set of feature values
                              for record
                              in data.values()
                              if record[field]}
@@ -189,6 +192,7 @@ class Fingerprinter(object):
 
 
 def extractIndices(index_fields):
+    # index_fields = {predicate type: function}
 
     indices = []
     for index_type, predicates in index_fields.items():

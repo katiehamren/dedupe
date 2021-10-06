@@ -961,6 +961,7 @@ class StaticMatching(Matching):
             self.data_model = pickle.load(settings_file)
             self.classifier = pickle.load(settings_file)
             self.predicates = pickle.load(settings_file)
+            self._fingerprinter = pickle.load(settings_file)
         except (KeyError, AttributeError):
             raise SettingsFileLoadingException(
                 "This settings file is not compatible with "
@@ -975,7 +976,7 @@ class StaticMatching(Matching):
         for predicate in self.predicates:
             logger.info(predicate)
 
-        self._fingerprinter = blocking.Fingerprinter(self.predicates)
+        # self._fingerprinter = blocking.Fingerprinter(self.predicates)
 
 
 class ActiveMatching(Matching):
@@ -1043,8 +1044,22 @@ class ActiveMatching(Matching):
         training_pairs = json.load(training_file,
                                    object_hook=serializer._from_json)
 
+        # Turn any lists into tuples for the Set datatype
+        new_training_pairs = {}
+        for group in ['match', 'distinct']:
+            new_group = []
+            for pair in training_pairs[group]:
+                new_pair = []
+                for p in pair:
+                    for key, value in p.items():
+                        if isinstance(value, list):
+                            p[key] = tuple(value)
+                    new_pair.append(p)
+                new_group.append(tuple(new_pair))
+            new_training_pairs[group] = new_group
+
         try:
-            self.mark_pairs(training_pairs)
+            self.mark_pairs(new_training_pairs)
         except AttributeError as e:
             if "Attempting to fingerprint with an index predicate without indexing records" in str(e):
                 raise UserWarning('Training data has records not known '
@@ -1057,7 +1072,8 @@ class ActiveMatching(Matching):
 
     def train(self,
               recall: float = 1.00,
-              index_predicates: bool = True) -> None:  # pragma: no cover
+              index_predicates: bool = True,
+              reset_indices: bool = True) -> None:  # pragma: no cover
         """
         Learn final pairwise classifier and fingerprinting rules. Requires that
         adequate training data has been already been provided.
@@ -1076,6 +1092,8 @@ class ActiveMatching(Matching):
                               data. Index predicates can be slower
                               and take substantial memory.
 
+            reset_indices: Should dedupe reset the indices to save memory
+
         """
         assert self.active_learner is not None, \
                "Please initialize with the sample method"
@@ -1086,7 +1104,8 @@ class ActiveMatching(Matching):
         self.predicates = self.active_learner.learn_predicates(
             recall, index_predicates)
         self._fingerprinter = blocking.Fingerprinter(self.predicates)
-        self.fingerprinter.reset_indices()
+        if reset_indices:
+            self.fingerprinter.reset_indices()
 
     def write_training(self, file_obj: TextIO) -> None:  # pragma: no cover
         """
@@ -1124,6 +1143,7 @@ class ActiveMatching(Matching):
         pickle.dump(self.data_model, file_obj)
         pickle.dump(self.classifier, file_obj)
         pickle.dump(self.predicates, file_obj)
+        pickle.dump(self.fingerprinter, file_obj)
 
     def uncertain_pairs(self) -> List[TrainingExample]:
         '''
