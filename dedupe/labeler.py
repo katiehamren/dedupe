@@ -226,7 +226,14 @@ class BlockLearner(object):
         for record_1, record_2 in candidates:
 
             for predicate in self.current_predicates:
-                keys = predicate(record_2, target=True)
+                try:
+                    keys = predicate(record_2, target=True)
+                except AttributeError as e:
+                    if 'Attempting to block with an index' in e:
+                        continue
+                    else:
+                        raise e
+
                 if keys:
                     if set(predicate(record_1)) & set(keys):
                         labels.append(1)
