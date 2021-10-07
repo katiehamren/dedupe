@@ -229,7 +229,7 @@ class BlockLearner(object):
                 try:
                     keys = predicate(record_2, target=True)
                 except AttributeError as e:
-                    if 'Attempting to block with an index' in e:
+                    if 'Attempting to block with an index' in str(e):
                         continue
                     else:
                         raise e
