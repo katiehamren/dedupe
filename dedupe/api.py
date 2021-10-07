@@ -132,7 +132,8 @@ class DedupeMatching(IntegralMatching):
 
     def partition(self,
                   data: Data,
-                  threshold: float = 0.5) -> Clusters:  # pragma: no cover
+                  threshold: float = 0.5,
+                  max_iter: int=50) -> Clusters:  # pragma: no cover
         """
         Identifies records that all refer to the same entity, returns
         tuples containing a sequence of record ids and corresponding
@@ -161,6 +162,8 @@ class DedupeMatching(IntegralMatching):
                        Lowering the number will increase recall,
                        raising it will increase precision
 
+            max_iter: Maximum of times to iterate through a cluster to reduce its size
+
         .. code:: python
 
            > clusters = matcher.partition(data, threshold=0.5)
@@ -172,7 +175,7 @@ class DedupeMatching(IntegralMatching):
         """
         pairs = self.pairs(data)
         pair_scores = self.score(pairs)
-        clusters = self.cluster(pair_scores, threshold)
+        clusters = self.cluster(pair_scores, threshold, max_iter=max_iter)
 
         clusters = self._add_singletons(data, clusters)
 
@@ -265,7 +268,8 @@ class DedupeMatching(IntegralMatching):
 
     def cluster(self,
                 scores: numpy.ndarray,
-                threshold: float = 0.5) -> Clusters:
+                threshold: float = 0.5,
+                max_iter: int=50) -> Clusters:
         r"""From the similarity scores of pairs of records, decide which groups
         of records are all referring to the same entity.
 
@@ -329,7 +333,7 @@ class DedupeMatching(IntegralMatching):
 
         logger.debug("matching done, begin clustering")
 
-        yield from clustering.cluster(scores, threshold)
+        yield from clustering.cluster(scores, threshold, max_iter=max_iter)
 
 
 class RecordLinkMatching(IntegralMatching):

@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 def connected_components(edgelist: numpy.ndarray,
-                         max_components: int) -> Generator[numpy.ndarray, None, None]:
+                         max_components: int,
+                         max_iter: int=50) -> Generator[numpy.ndarray, None, None]:
 
     if len(edgelist) == 0:
         raise StopIteration()
@@ -55,13 +56,15 @@ def connected_components(edgelist: numpy.ndarray,
                                       edgelist,
                                       ['pairs', 'score'])
 
-        yield from _connected_components(edgelist, max_components)
+        yield from _connected_components(edgelist, max_components, 0, max_iter=max_iter)
 
         edgelist._mmap.close()  # type: ignore
 
 
 def _connected_components(edgelist: numpy.ndarray,
-                          max_components: int) -> Generator[numpy.ndarray, None, None]:
+                          max_components: int,
+                          iteration: int,
+                          max_iter: int=50) -> Generator[numpy.ndarray, None, None]:
     component_stops = union_find(edgelist)
 
     start = 0
@@ -72,16 +75,16 @@ def _connected_components(edgelist: numpy.ndarray,
 
         n_components = len(numpy.unique(sub_graph['pairs']))
 
-        if n_components > max_components:
+        if (n_components > max_components) & (iteration < max_iter):
             min_score = numpy.min(sub_graph['score'])
             min_score_logit = numpy.log(min_score) - numpy.log(1 - min_score)
             threshold = 1 / (1 + numpy.exp(-min_score_logit - 1))
-            logger.warning('A component contained %s elements. '
-                           'Components larger than %s are '
+            logger.warning(f'A component contained {n_components} elements. '
+                           f'Components larger than {max_components} are '
                            're-filtered. The threshold for this '
-                           'filtering is %s' % (n_components,
-                                                max_components,
-                                                threshold))
+                           f'filtering is {threshold}. We have' 
+                           f'{max_iter-iteration} iterations remaining')
+
             # slices of memmaped arrays are also memmaped arrays,
             # which is what we want. So, we sort and slice as oppose
             # to selecting like `sub_graph[sub_graph['score'] >
@@ -89,10 +92,10 @@ def _connected_components(edgelist: numpy.ndarray,
             # made
             sub_graph.sort(order='score')
             cut_point = numpy.searchsorted(sub_graph['score'], threshold)
-            filtered_sub_graph = sub_graph[max(cut_point, 2):]
+            filtered_sub_graph = sub_graph[max(cut_point, 50):]
 
             for sub_graph in _connected_components(filtered_sub_graph,
-                                                   max_components):
+                                                   max_components, iteration+1):
                 yield sub_graph[['pairs', 'score']]
         else:
             yield sub_graph[['pairs', 'score']]
@@ -194,7 +197,8 @@ def condensedDistance(dupes: numpy.ndarray) -> Tuple[Dict[int, RecordID],
 
 def cluster(dupes: numpy.ndarray,
             threshold: float = .5,
-            max_components: int = 30000) -> Clusters:
+            max_components: int = 30000,
+            max_iter: int=50) -> Clusters:
     '''
     Takes in a list of duplicate pairs and clusters them in to a
     list records that all refer to the same entity based on a given
@@ -206,7 +210,7 @@ def cluster(dupes: numpy.ndarray,
                  recall
     '''
     distance_threshold = 1 - threshold
-    dupe_sub_graphs = connected_components(dupes, max_components)
+    dupe_sub_graphs = connected_components(dupes, max_components, max_iter=max_iter)
 
     for sub_graph in dupe_sub_graphs:
         if len(sub_graph) > 1:
