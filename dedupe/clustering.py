@@ -31,7 +31,6 @@ def connected_components(edgelist: numpy.ndarray,
     if len(edgelist) == 0:
         raise StopIteration()
 
-    print(f"connected components max_iter {max_iter}")
     unlabeled_edgelist = edgelist
 
     # we are going to keep track of the connected components
@@ -77,7 +76,8 @@ def _connected_components(edgelist: numpy.ndarray,
         n_components = len(numpy.unique(sub_graph['pairs']))
 
         if (n_components > max_components) & (iteration < max_iter):
-            min_score = numpy.min(sub_graph['score'])
+            # Set a maximum, because if scores get too small we get stuck in a loop
+            min_score = max(numpy.min(sub_graph['score']), 10e-10)
             min_score_logit = numpy.log(min_score) - numpy.log(1 - min_score)
             threshold = 1 / (1 + numpy.exp(-min_score_logit - 1))
             logger.warning(f'A component contained {n_components} elements. '
@@ -93,10 +93,10 @@ def _connected_components(edgelist: numpy.ndarray,
             # made
             sub_graph.sort(order='score')
             cut_point = numpy.searchsorted(sub_graph['score'], threshold)
-            filtered_sub_graph = sub_graph[max(cut_point, 50):]
+            filtered_sub_graph = sub_graph[max(cut_point, 2):]
 
             for sub_graph in _connected_components(filtered_sub_graph,
-                                                   max_components, iteration+1):
+                                                   max_components, iteration+1, max_iter=max_iter):
                 yield sub_graph[['pairs', 'score']]
         else:
             yield sub_graph[['pairs', 'score']]
