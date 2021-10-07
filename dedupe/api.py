@@ -987,6 +987,7 @@ class ActiveMatching(Matching):
 
     def __init__(self,
                  variable_definition: Sequence[Mapping],
+                 allow_index_predicates: bool = True,
                  num_cores: Optional[int] = None,
                  in_memory: bool = False,
                  **kwargs) -> None:
@@ -1024,6 +1025,8 @@ class ActiveMatching(Matching):
         self.active_learner: Optional[Union[labeler.DedupeDisagreementLearner,
                                             labeler.RecordLinkDisagreementLearner]]
         self.active_learner = None
+
+        self.allow_index_predicates = allow_index_predicates
 
     def cleanup_training(self) -> None:  # pragma: no cover
         '''
@@ -1312,7 +1315,8 @@ class Dedupe(ActiveMatching, DedupeMatching):
                                                  data,
                                                  blocked_proportion,
                                                  sample_size,
-                                                 index_include=examples)
+                                                 index_include=examples,
+                                                 allow_index_predicates=self.allow_index_predicates)
 
         self.active_learner.mark(examples, y)
 

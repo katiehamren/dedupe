@@ -226,13 +226,9 @@ class BlockLearner(object):
         for record_1, record_2 in candidates:
 
             for predicate in self.current_predicates:
-                try:
-                    keys = predicate(record_2, target=True)
-                except AttributeError as e:
-                    if 'Attempting to block with an index' in str(e):
-                        continue
-                    else:
-                        raise e
+                if hasattr(predicate, 'index'):
+                    continue
+                keys = predicate(record_2, target=True)
 
                 if keys:
                     if set(predicate(record_1)) & set(keys):
@@ -255,22 +251,27 @@ class DedupeBlockLearner(BlockLearner):
     def __init__(self, data_model,
                  candidates,
                  data,
-                 index_include):
+                 index_include,
+                 allow_index_predicates: bool=True):
         super().__init__(data_model, candidates)
 
         index_data = Sample(data, 50000)
         sampled_records = Sample(index_data, 5000)
         preds = self.data_model.predicates()
 
+        if not allow_index_predicates:
+            preds = [p for p in preds if not hasattr(p, 'index')]
+
         self.block_learner = training.DedupeBlockLearner(preds,
                                                          sampled_records,
                                                          index_data)
 
-        examples_to_index = candidates.copy()
-        if index_include:
-            examples_to_index += index_include
+        if allow_index_predicates:
+            examples_to_index = candidates.copy()
+            if index_include:
+                examples_to_index += index_include
 
-        self._index_predicates(examples_to_index)
+            self._index_predicates(examples_to_index)
 
     def _index_predicates(self, candidates):
 
@@ -388,7 +389,7 @@ class DisagreementLearner(ActiveLearner):
     def transform(self):
         pass
 
-    def learn_predicates(self, recall, index_predicates):
+    def learn_predicates(self, recall: float, index_predicates: bool):
         dupes = [pair for label, pair in zip(self.y, self.pairs) if label]
 
         if not index_predicates:
@@ -419,7 +420,8 @@ class DedupeDisagreementLearner(DedupeSampler, DisagreementLearner):
                  data,
                  blocked_proportion,
                  sample_size,
-                 index_include):
+                 index_include,
+                 allow_index_predicates):
 
         self.data_model = data_model
 
@@ -436,7 +438,8 @@ class DedupeDisagreementLearner(DedupeSampler, DisagreementLearner):
         self.blocker = DedupeBlockLearner(data_model,
                                           self.candidates,
                                           data,
-                                          index_include)
+                                          index_include,
+                                          allow_index_predicates = allow_index_predicates)
         self.classifier = RLRLearner(self.data_model)
         self.classifier.candidates = self.candidates
 
