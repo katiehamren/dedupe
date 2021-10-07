@@ -1312,6 +1312,7 @@ class Dedupe(ActiveMatching, DedupeMatching):
 
         # We need the active learner to know about all our
         # existing training data, so add them to data dictionary
+        print(len(self.training_pairs['match']), len(self.training_pairs['distinct']))
         examples, y = flatten_training(self.training_pairs)
 
         self.active_learner = self.ActiveLearner(self.data_model,
