@@ -31,6 +31,7 @@ def connected_components(edgelist: numpy.ndarray,
     if len(edgelist) == 0:
         raise StopIteration()
 
+    print(f"connected components max_iter {max_iter}")
     unlabeled_edgelist = edgelist
 
     # we are going to keep track of the connected components
@@ -82,7 +83,7 @@ def _connected_components(edgelist: numpy.ndarray,
             logger.warning(f'A component contained {n_components} elements. '
                            f'Components larger than {max_components} are '
                            're-filtered. The threshold for this '
-                           f'filtering is {threshold}. We have' 
+                           f'filtering is {threshold}. We have ' 
                            f'{max_iter-iteration} iterations remaining')
 
             # slices of memmaped arrays are also memmaped arrays,
@@ -209,6 +210,7 @@ def cluster(dupes: numpy.ndarray,
                  number will increase precision, raising it will increase
                  recall
     '''
+    print(f"clustering.cluster max iter {max_iter}")
     distance_threshold = 1 - threshold
     dupe_sub_graphs = connected_components(dupes, max_components, max_iter=max_iter)
 

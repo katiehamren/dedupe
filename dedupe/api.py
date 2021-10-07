@@ -175,6 +175,7 @@ class DedupeMatching(IntegralMatching):
         """
         pairs = self.pairs(data)
         pair_scores = self.score(pairs)
+        print(f"partition max_iter: {max_iter}")
         clusters = self.cluster(pair_scores, threshold, max_iter=max_iter)
 
         clusters = self._add_singletons(data, clusters)
@@ -332,7 +333,7 @@ class DedupeMatching(IntegralMatching):
         """
 
         logger.debug("matching done, begin clustering")
-
+        print(f"api.cluser max iter {max_iter}")
         yield from clustering.cluster(scores, threshold, max_iter=max_iter)
 
 
