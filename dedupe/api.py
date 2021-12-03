@@ -1051,6 +1051,7 @@ class ActiveMatching(Matching):
                                    object_hook=serializer._from_json)
 
         # Turn any lists into tuples for the Set datatype
+        logger.info("re-formatting any lists into tuples")
         new_training_pairs = {}
         for group in ['match', 'distinct']:
             new_group = []
@@ -1109,6 +1110,10 @@ class ActiveMatching(Matching):
 
         self.predicates = self.active_learner.learn_predicates(
             recall, index_predicates)
+
+        if len(self.predicates) == 0:
+            raise UserWarning("No predicates identified, try with a lower recall!")
+
         self._fingerprinter = blocking.Fingerprinter(self.predicates)
         if reset_indices:
             self.fingerprinter.reset_indices()
